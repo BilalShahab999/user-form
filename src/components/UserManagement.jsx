@@ -15,18 +15,22 @@ const initialForm = {
 }
 
 const validationSchema = Yup.object({
-  firstName: Yup.string().trim().required('Required'),
-  lastName: Yup.string().trim().required('Required'),
-  age: Yup.number().min(18, 'Minimum age is 18').max(60, 'Maximum age is 60').required('Required'),
-  gender: Yup.string().oneOf(['male', 'female', 'other']).required('Required'),
-  email: Yup.string().email('Invalid email').required('Required'),
+  firstName: Yup.string().trim().required('First name is required'),
+  lastName: Yup.string().trim().required('Last name is required'),
+  age: Yup.number()
+    .typeError('Age must be a number')
+    .min(18, 'You must be at least 18 years old')
+    .max(60, 'Age cannot be greater than 60')
+    .required('Age is required'),
+  gender: Yup.string().oneOf(['male', 'female', 'other']).required('Please select a gender'),
+  email: Yup.string().email('Please enter a valid email address (e.g. name@example.com)').required('Email is required'),
   phone: Yup.string()
-    .matches(/^\+?[0-9\-\s]{7,20}$/, 'Invalid phone')
-    .required('Required'),
-  password: Yup.string().min(8, 'Minimum 8 characters').required('Required'),
+    .matches(/^\+?[0-9\-\s]{7,20}$/, 'Enter a valid phone number (7-20 digits, "+" and "-" allowed)')
+    .required('Phone number is required'),
+  password: Yup.string().min(8, 'Password must be at least 8 characters long').required('Password is required'),
   confirmPassword: Yup.string()
-    .oneOf([Yup.ref('password')], 'Passwords must match')
-    .required('Required'),
+    .oneOf([Yup.ref('password')], 'Passwords do not match')
+    .required('Please confirm your password'),
 })
 
 function Modal({ open, onClose, children }) {
@@ -57,11 +61,14 @@ function loadUsersFromStorage() {
   return []
 }
 
+const MIN_AGE = 18
+const MAX_AGE = 60
+
 export default function UserManagement() {
   const [users, setUsers] = useState(loadUsersFromStorage)
   const [isOpen, setIsOpen] = useState(false)
   const [query, setQuery] = useState('')
-  const [ageRange, setAgeRange] = useState([18, 60])
+  const [ageRange, setAgeRange] = useState([MIN_AGE, MAX_AGE])
 
   const addUser = (values, actions) => {
     const saved = { ...values }
@@ -79,8 +86,18 @@ export default function UserManagement() {
     } catch (e) {}
   }, [users])
 
-  const minAge = 18
-  const maxAge = 60
+  // Keep min/max within bounds and prevent them from crossing each other.
+  const handleMinAgeChange = (e) => {
+    const raw = Number(e.target.value)
+    const clamped = Math.min(Math.max(raw, MIN_AGE), ageRange[1])
+    setAgeRange([clamped, ageRange[1]])
+  }
+
+  const handleMaxAgeChange = (e) => {
+    const raw = Number(e.target.value)
+    const clamped = Math.max(Math.min(raw, MAX_AGE), ageRange[0])
+    setAgeRange([ageRange[0], clamped])
+  }
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase()
@@ -121,7 +138,27 @@ export default function UserManagement() {
       </header>
 
       <section className="ums-filters">
-        <label className="ums-age-label">Allowed age: {ageRange[0]} - {ageRange[1]}</label>
+        <label className="ums-age-label">
+          Min age:
+          <input
+            type="number"
+            min={MIN_AGE}
+            max={MAX_AGE}
+            value={ageRange[0]}
+            onChange={handleMinAgeChange}
+          />
+        </label>
+        <label className="ums-age-label">
+          Max age:
+          <input
+            type="number"
+            min={MIN_AGE}
+            max={MAX_AGE}
+            value={ageRange[1]}
+            onChange={handleMaxAgeChange}
+          />
+        </label>
+        <span className="ums-age-display">Showing ages {ageRange[0]} - {ageRange[1]}</span>
       </section>
 
       <section className="ums-table-wrap">
@@ -183,7 +220,7 @@ export default function UserManagement() {
                 <div className="ums-row">
                   <label>
                     Age
-                    <Field name="age" type="number" min={minAge} max={maxAge} />
+                    <Field name="age" type="number" min={MIN_AGE} max={MAX_AGE} />
                     <ErrorMessage name="age" component="div" className="ums-error" />
                   </label>
                   <label>

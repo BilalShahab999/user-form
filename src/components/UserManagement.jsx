@@ -61,6 +61,13 @@ function loadUsersFromStorage() {
   return []
 }
 
+// Give each user a stable id so delete works reliably even if two users
+// have identical field values.
+function makeId() {
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) return crypto.randomUUID()
+  return `${Date.now()}-${Math.random().toString(16).slice(2)}`
+}
+
 const MIN_AGE = 18
 const MAX_AGE = 60
 
@@ -71,12 +78,16 @@ export default function UserManagement() {
   const [ageRange, setAgeRange] = useState([MIN_AGE, MAX_AGE])
 
   const addUser = (values, actions) => {
-    const saved = { ...values }
+    const saved = { ...values, id: makeId() }
     delete saved.password
     delete saved.confirmPassword
     setUsers((s) => [saved, ...s])
     actions.resetForm()
     setIsOpen(false)
+  }
+
+  const deleteUser = (id) => {
+    setUsers((s) => s.filter((u) => u.id !== id))
   }
 
   // persist users whenever they change
@@ -170,23 +181,33 @@ export default function UserManagement() {
               <th>Gender</th>
               <th>Email</th>
               <th>Phone</th>
+              <th>Actions</th>
             </tr>
           </thead>
           <tbody>
             {filtered.length === 0 ? (
               <tr>
-                <td colSpan={5} className="ums-empty">
+                <td colSpan={6} className="ums-empty">
                   No users found.
                 </td>
               </tr>
             ) : (
-              filtered.map((u, i) => (
-                <tr key={i}>
+              filtered.map((u) => (
+                <tr key={u.id}>
                   <td>{u.firstName} {u.lastName}</td>
                   <td>{u.age}</td>
                   <td>{u.gender}</td>
                   <td>{u.email}</td>
                   <td>{u.phone}</td>
+                  <td>
+                    <button
+                      type="button"
+                      className="ums-delete"
+                      onClick={() => deleteUser(u.id)}
+                    >
+                      Delete
+                    </button>
+                  </td>
                 </tr>
               ))
             )}
